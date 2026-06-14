@@ -1,0 +1,567 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="4:6 Timer">
+<meta name="theme-color" content="#15100C">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="apple-touch-icon.png">
+<title>4:6 Method Drip Timer</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,600&display=swap');
+  :root {
+    --bg: #15100C; --surface: #221813; --surface2: #2C1F18;
+    --line: #3D2C21; --copper: #C97E40; --amber: #E8A85A;
+    --cream: #F2E7D5; --muted: #9A8674;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg); color: var(--cream);
+    font-family: 'Hiragino Kaku Gothic ProN','Noto Sans JP',system-ui,sans-serif;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .app {
+    max-width: 440px; margin: 0 auto; min-height: 100vh;
+    padding: max(20px, env(safe-area-inset-top)) 18px calc(40px + env(safe-area-inset-bottom));
+  }
+  button { cursor: pointer; font-family: inherit; -webkit-tap-highlight-color: transparent; }
+  .mono { font-family: 'DM Mono', ui-monospace, monospace; }
+
+  .eyebrow { font-size: 11px; letter-spacing: 0.25em; color: var(--copper); margin-bottom: 4px; }
+  .title { font-family: 'Fraunces', serif; font-size: 26px; margin-bottom: 22px; }
+
+  .label { font-size: 13px; color: var(--muted); margin-bottom: 8px; }
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
+
+  /* 豆量ステッパー */
+  .stepper { display: flex; align-items: center; gap: 14px; padding: 14px 16px; margin-bottom: 20px; }
+  .btn-round {
+    width: 52px; height: 52px; border-radius: 50%;
+    border: 1px solid var(--line); background: var(--surface2);
+    color: var(--cream); font-size: 26px; line-height: 1;
+  }
+  .stepper-val { flex: 1; text-align: center; }
+  .stepper-num { font-size: 34px; color: var(--amber); }
+  .stepper-sub { font-size: 12px; color: var(--muted); margin-top: 2px; }
+
+  /* セグメント */
+  .seg { display: flex; gap: 6px; }
+  .seg button {
+    flex: 1; padding: 12px 0; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--surface);
+    color: var(--muted); font-size: 15px;
+  }
+  .seg button.on {
+    border-color: var(--copper); background: rgba(201,126,64,0.18);
+    color: var(--amber); font-weight: 700;
+  }
+  .section { margin-bottom: 16px; }
+
+  .temp-guide {
+    margin-top: 8px; font-size: 13px; color: var(--amber);
+    background: rgba(201,126,64,0.10); border: 1px solid rgba(201,126,64,0.25);
+    border-radius: 10px; padding: 10px 12px;
+  }
+
+  /* スケジュールプレビュー */
+  .preview { padding: 14px 16px; margin: 24px 0; }
+  .preview-head { font-size: 12px; color: var(--copper); letter-spacing: 0.1em; margin-bottom: 10px; }
+  .preview-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 6px 0; font-size: 14px; }
+  .preview-row span:nth-child(2) { text-align: center; }
+  .preview-row span:nth-child(3) { text-align: right; }
+  .preview-row.divider { border-bottom: 1px dashed rgba(201,126,64,0.33); }
+  .preview-foot { display: flex; justify-content: space-between; padding-top: 8px; font-size: 13px; color: var(--muted); }
+
+  .btn-start {
+    width: 100%; padding: 18px 0; border-radius: 14px; border: none;
+    background: linear-gradient(135deg, var(--copper), var(--amber));
+    color: #1A120C; font-size: 18px; font-weight: 700;
+  }
+
+  /* 抽出画面 */
+  .brew-wrap { display: flex; gap: 18px; }
+  .gauge {
+    width: 64px; min-height: 300px; align-self: stretch; flex-shrink: 0;
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 10px 10px 26px 26px;
+    position: relative; overflow: hidden;
+  }
+  .gauge-fill {
+    position: absolute; bottom: 0; left: 0; right: 0; height: 0%;
+    background: linear-gradient(180deg, rgba(201,126,64,0.8), #6B3F1F);
+    transition: height 0.8s ease;
+  }
+  .gauge-mark { position: absolute; left: 0; right: 0; height: 0; }
+  .gauge-mark .ln {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    border-top: 1px dashed rgba(242,231,213,0.25);
+  }
+  .gauge-mark .lb {
+    position: absolute; left: 4px; bottom: 2px;
+    font-size: 9px; color: rgba(242,231,213,0.55);
+    font-family: 'DM Mono', monospace;
+  }
+
+  @keyframes gaugeSteam {
+    0%   { transform: translateY(0) translateX(0) scaleY(0.7) scaleX(1); opacity: 0; }
+    18%  { opacity: var(--steam-op); }
+    35%  { transform: translateY(-38px) translateX(7px) scaleY(1) scaleX(0.9); }
+    60%  { transform: translateY(-72px) translateX(-5px) scaleY(1.15) scaleX(1.05); opacity: calc(var(--steam-op) * 0.7); }
+    80%  { transform: translateY(-100px) translateX(4px) scaleY(1.3) scaleX(1.2); }
+    100% { transform: translateY(-128px) translateX(-2px) scaleY(1.45) scaleX(1.45); opacity: 0; }
+  }
+  .gauge-steam {
+    position: absolute; width: 18px; height: 92px; border-radius: 50%;
+    background: radial-gradient(ellipse at center, rgba(255,255,255,0.95), rgba(252,250,246,0.4) 55%, transparent 75%);
+    filter: blur(6px); pointer-events: none;
+    animation: gaugeSteam ease-in-out infinite;
+    display: none;
+  }
+  .steaming .gauge-steam { display: block; }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; }
+    .gauge-steam { display: none !important; }
+  }
+
+  .brew-main { flex: 1; display: flex; flex-direction: column; }
+  .time-big { font-size: 52px; line-height: 1.1; }
+  .time-sub { font-size: 12px; color: var(--muted); margin-bottom: 18px; }
+
+  .pour-card {
+    background: var(--surface2); border: 1px solid rgba(201,126,64,0.4);
+    border-radius: 14px; padding: 16px; margin-bottom: 14px;
+  }
+  .pour-step { font-size: 12px; color: var(--copper); margin-bottom: 4px; }
+  .pour-amt { font-size: 24px; font-weight: 700; }
+  .pour-cum { font-size: 14px; color: var(--amber); margin-top: 2px; }
+
+  .next-label { font-size: 12px; color: var(--muted); }
+  .next-count { font-size: 30px; }
+  .next-count.soon { color: var(--amber); }
+  .countdown-block { margin-bottom: 14px; }
+
+  .done-card {
+    background: var(--surface2); border: 1px solid var(--copper);
+    border-radius: 14px; padding: 18px 16px; margin-bottom: 14px;
+  }
+  .done-title { font-size: 20px; font-weight: 700; color: var(--amber); }
+  .done-sub { font-size: 13px; color: var(--muted); margin-top: 4px; }
+
+  .controls { display: flex; gap: 8px; margin-top: auto; }
+  .btn-sub {
+    flex: 1; padding: 12px 0; border-radius: 10px;
+    border: 1px solid var(--line); background: var(--surface);
+    color: var(--cream); font-size: 15px;
+  }
+  .btn-bean { flex: 0; padding: 10px 14px; display: flex; align-items: center; justify-content: center; }
+
+  .steps { margin-top: 20px; }
+  .step-row {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    padding: 8px 12px; border-radius: 8px; font-size: 14px; color: var(--muted);
+  }
+  .step-row span:nth-child(2) { text-align: center; }
+  .step-row span:nth-child(3) { text-align: right; }
+  .step-row.active { background: rgba(201,126,64,0.15); color: var(--cream); }
+
+  .hidden { display: none !important; }
+
+  /* ===== レスポンシブ対応 ===== */
+  /* タブレット（iPad縦〜横） */
+  @media (min-width: 600px) {
+    .app { max-width: 680px; padding-left: 32px; padding-right: 32px; }
+    .title { font-size: 34px; }
+    .eyebrow { font-size: 13px; }
+    .label { font-size: 15px; }
+    .stepper-num { font-size: 44px; }
+    .seg button { padding: 16px 0; font-size: 17px; }
+    .gauge { width: 84px; min-height: 380px; }
+    .time-big { font-size: 68px; }
+    .pour-amt { font-size: 30px; }
+    .next-count { font-size: 38px; }
+    .btn-start { font-size: 20px; padding: 22px 0; }
+    .preview-row, .step-row { font-size: 16px; }
+  }
+
+  /* PC・大画面（横長）：幅を抑えて中央寄せ、要素を大きく見やすく */
+  @media (min-width: 900px) {
+    .app { max-width: 620px; padding-top: 48px; }
+    .title { font-size: 40px; margin-bottom: 28px; }
+    .gauge { width: 96px; min-height: 440px; }
+    .time-big { font-size: 84px; }
+    .pour-amt { font-size: 32px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="eyebrow">KASUYA 4:6 METHOD</div>
+  <div class="title">4:6 Method Drip Timer</div>
+
+  <!-- セットアップ画面 -->
+  <div id="setup">
+    <div class="label">豆の量（湯量は1:15で自動計算）</div>
+    <div class="card stepper">
+      <button class="btn-round" id="minus">−</button>
+      <div class="stepper-val">
+        <span class="stepper-num mono" id="coffeeNum">20</span><span style="font-size:14px;color:var(--muted);margin-left:4px;">g</span>
+        <div class="stepper-sub" id="waterSub">湯 300ml ／ 中粗挽き</div>
+      </div>
+      <button class="btn-round" id="plus">＋</button>
+    </div>
+
+    <div class="section">
+      <div class="label">焙煎度 — 湯温の目安</div>
+      <div class="seg" id="roastSeg">
+        <button data-v="light">浅煎り</button>
+        <button data-v="medium">中煎り</button>
+        <button data-v="dark" class="on">深煎り</button>
+      </div>
+      <div class="temp-guide" id="tempGuide"></div>
+    </div>
+
+    <div class="section">
+      <div class="label">味わい — 前半40%の配分</div>
+      <div class="seg" id="tasteSeg">
+        <button data-v="bright">明るめ</button>
+        <button data-v="std">標準</button>
+        <button data-v="sweet" class="on">甘め</button>
+      </div>
+    </div>
+
+    <div class="section" style="margin-bottom:24px;">
+      <div class="label">濃度 — 後半60%の回数</div>
+      <div class="seg" id="strengthSeg">
+        <button data-v="light">薄め</button>
+        <button data-v="std">標準</button>
+        <button data-v="strong" class="on">濃いめ</button>
+      </div>
+    </div>
+
+    <div class="card preview">
+      <div class="preview-head">注湯スケジュール（45秒間隔）</div>
+      <div id="previewRows"></div>
+      <div class="preview-foot">
+        <span class="mono" id="previewFinish">3:45</span>
+        <span>落ちきったらドリッパーを外す</span>
+      </div>
+    </div>
+
+    <button class="btn-start" id="startBtn">抽出スタート</button>
+  </div>
+
+  <!-- 抽出画面 -->
+  <div id="brew" class="hidden">
+    <div class="brew-wrap">
+      <div class="gauge" id="gauge">
+        <div class="gauge-fill" id="gaugeFill"></div>
+        <div id="gaugeMarks"></div>
+        <div class="gauge-steam" id="st1" style="left:10%; --steam-op:0.5;  animation-duration:8.5s; animation-delay:0s;"></div>
+        <div class="gauge-steam" id="st2" style="left:38%; --steam-op:0.35; animation-duration:11s;  animation-delay:-5s;"></div>
+        <div class="gauge-steam" id="st3" style="left:58%; --steam-op:0.45; animation-duration:9.5s; animation-delay:-8s;"></div>
+        <div class="gauge-steam" id="st4" style="left:25%; --steam-op:0.3;  animation-duration:13s;  animation-delay:-3s;"></div>
+      </div>
+
+      <div class="brew-main">
+        <div class="time-big mono" id="timeBig">0:00</div>
+        <div class="time-sub">目安合計 <span id="finishLabel" class="mono">3:45</span></div>
+
+        <div class="pour-card" id="pourCard">
+          <div class="pour-step" id="pourStep"></div>
+          <div class="pour-amt" id="pourAmt"></div>
+          <div class="pour-cum" id="pourCum"></div>
+        </div>
+
+        <div class="countdown-block" id="countdownBlock">
+          <div class="next-label" id="nextLabel"></div>
+          <div class="next-count mono" id="nextCount"></div>
+        </div>
+
+        <div class="done-card hidden" id="doneCard">
+          <div class="done-title">抽出完了 ☕</div>
+          <div class="done-sub" id="doneSub"></div>
+        </div>
+
+        <div class="controls">
+          <button class="btn-sub" id="pauseBtn">一時停止</button>
+          <button class="btn-sub" id="resetBtn">リセット</button>
+          <button class="btn-sub btn-bean" id="muteBtn" aria-label="音をオフにする">
+            <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+              <g id="beanSteam" stroke="#C97E40" stroke-width="1.6" stroke-linecap="round" opacity="0.9">
+                <path d="M8.5 6 C 9.5 4.5, 7.5 3.5, 8.5 2"/>
+                <path d="M13 5.5 C 14 4, 12 3, 13 1.5"/>
+                <path d="M17.5 6 C 18.5 4.5, 16.5 3.5, 17.5 2"/>
+              </g>
+              <g id="beanBody" opacity="1">
+                <ellipse cx="13" cy="16" rx="6.2" ry="8" transform="rotate(-28 13 16)" fill="#E8A85A"/>
+                <path d="M9.4 21.5 C 11 18.5, 11.5 14.5, 16.6 10.5" stroke="#15100C" stroke-width="1.7" stroke-linecap="round" fill="none"/>
+              </g>
+              <line id="beanSlash" x1="4" y1="23" x2="22" y2="4" stroke="#E8A85A" stroke-width="2.2" stroke-linecap="round" style="display:none;"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="steps" id="stepsList"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+// ---- 状態 ----
+const state = {
+  phase: "setup",        // setup | brew | done
+  coffee: 20,
+  roast: "dark",
+  taste: "sweet",
+  strength: "strong",
+  muted: false,
+  running: false,
+  elapsed: 0,
+  base: 0,
+  startAt: null,
+  beeped: new Set(),
+};
+
+const $ = (id) => document.getElementById(id);
+const fmt = (s) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
+
+// ---- 4:6 スケジュール生成 ----
+function buildSchedule() {
+  const water = state.coffee * 15;
+  const first = water * 0.4, last = water * 0.6;
+  let f;
+  if (state.taste === "sweet") f = [first * 5 / 12, first * 7 / 12];
+  else if (state.taste === "bright") f = [first * 7 / 12, first * 5 / 12];
+  else f = [first / 2, first / 2];
+  const n = state.strength === "strong" ? 4 : state.strength === "light" ? 2 : 3;
+  const amounts = [...f, ...Array(n).fill(last / n)].map(Math.round);
+  amounts[amounts.length - 1] += water - amounts.reduce((a, b) => a + b, 0);
+  let cum = 0;
+  return amounts.map((amt, i) => { cum += amt; return { idx: i + 1, time: i * 45, amount: amt, cum }; });
+}
+const finishTime = (sched) => sched[sched.length - 1].time + 45;
+
+// ---- 音 ----
+let audioCtx = null;
+function chime(kind) {
+  if (state.muted) return;
+  try {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === "suspended") audioCtx.resume();
+    const freqs = kind === "done" ? [660, 880, 1100] : [880, 1175];
+    freqs.forEach((f, i) => {
+      const o = audioCtx.createOscillator(), g = audioCtx.createGain();
+      o.type = "sine"; o.frequency.value = f;
+      const t = audioCtx.currentTime + i * 0.18;
+      g.gain.setValueAtTime(0.0001, t);
+      g.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
+      o.connect(g).connect(audioCtx.destination);
+      o.start(t); o.stop(t + 0.55);
+    });
+  } catch (e) {}
+}
+
+// ---- Wake Lock ----
+let wakeLock = null;
+async function acquireWakeLock() {
+  try {
+    if ("wakeLock" in navigator && state.phase === "brew" && state.running)
+      wakeLock = await navigator.wakeLock.request("screen");
+  } catch (e) {}
+}
+function releaseWakeLock() {
+  if (wakeLock) { wakeLock.release().catch(() => {}); wakeLock = null; }
+}
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") acquireWakeLock();
+});
+
+// ---- セットアップ画面の描画 ----
+const tempTexts = {
+  light: "🌡 湯温目安：90〜93℃（高めで成分をしっかり引き出す）",
+  medium: "🌡 湯温目安：86〜89℃（バランス重視）",
+  dark: "🌡 湯温目安：82〜85℃（低めで苦味の出すぎを抑える)",
+};
+function renderSetup() {
+  const water = state.coffee * 15;
+  $("coffeeNum").textContent = state.coffee;
+  $("waterSub").textContent = `湯 ${water}ml ／ 中粗挽き`;
+  $("tempGuide").textContent = tempTexts[state.roast];
+  const sched = buildSchedule();
+  $("previewRows").innerHTML = sched.map((p) => `
+    <div class="preview-row${p.idx === 2 ? " divider" : ""}">
+      <span class="mono" style="color:var(--muted)">${fmt(p.time)}</span>
+      <span>${p.amount}g 注ぐ</span>
+      <span class="mono" style="color:var(--amber)">計 ${p.cum}g</span>
+    </div>`).join("");
+  $("previewFinish").textContent = fmt(finishTime(sched));
+}
+
+function bindSeg(id, key) {
+  $(id).addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    state[key] = btn.dataset.v;
+    [...$(id).children].forEach((b) => b.classList.toggle("on", b === btn));
+    renderSetup();
+  });
+}
+bindSeg("roastSeg", "roast");
+bindSeg("tasteSeg", "taste");
+bindSeg("strengthSeg", "strength");
+$("minus").addEventListener("click", () => { state.coffee = Math.max(12, state.coffee - 1); renderSetup(); });
+$("plus").addEventListener("click", () => { state.coffee = Math.min(40, state.coffee + 1); renderSetup(); });
+
+// ---- 抽出画面 ----
+let sched = [];
+let intervalId = null;
+
+function startBrew() {
+  sched = buildSchedule();
+  state.phase = "brew";
+  state.running = true;
+  state.elapsed = 0;
+  state.base = 0;
+  state.startAt = Date.now();
+  state.beeped = new Set([1]);
+  $("setup").classList.add("hidden");
+  $("brew").classList.remove("hidden");
+  $("doneCard").classList.add("hidden");
+  $("pourCard").classList.remove("hidden");
+  $("countdownBlock").classList.remove("hidden");
+  $("pauseBtn").classList.remove("hidden");
+  $("pauseBtn").textContent = "一時停止";
+  $("resetBtn").textContent = "リセット";
+  $("finishLabel").textContent = fmt(finishTime(sched));
+  renderGaugeMarks();
+  chime("pour");
+  acquireWakeLock();
+  intervalId = setInterval(tick, 100);
+  tick();
+}
+
+function renderGaugeMarks() {
+  const water = state.coffee * 15;
+  $("gaugeMarks").innerHTML = sched.map((p) => {
+    const pct = (p.cum / water) * 96;
+    return `<div class="gauge-mark" style="bottom:${pct}%"><div class="ln"></div><span class="lb">${p.cum}</span></div>`;
+  }).join("");
+}
+
+function tick() {
+  if (state.running)
+    state.elapsed = state.base + (Date.now() - state.startAt) / 1000;
+  const e = state.elapsed;
+  const water = state.coffee * 15;
+  const fin = finishTime(sched);
+
+  // 注湯チャイム
+  sched.forEach((p) => {
+    if (e >= p.time && !state.beeped.has(p.idx)) {
+      state.beeped.add(p.idx);
+      if (p.idx > 1) chime("pour");
+    }
+  });
+
+  // 完了
+  if (e >= fin && !state.beeped.has("done")) {
+    state.beeped.add("done");
+    chime("done");
+    state.running = false;
+    state.phase = "done";
+    releaseWakeLock();
+    const tl = { sweet: "甘め", std: "標準", bright: "明るめ" };
+    const sl = { light: "薄め", std: "標準", strong: "濃いめ" };
+    $("doneSub").textContent = `${state.coffee}g／${water}ml・${tl[state.taste]}・${sl[state.strength]}`;
+    $("doneCard").classList.remove("hidden");
+    $("pourCard").classList.add("hidden");
+    $("countdownBlock").classList.add("hidden");
+    $("pauseBtn").classList.add("hidden");
+    $("resetBtn").textContent = "もう一杯";
+  }
+
+  // 現在ステップ
+  const currentIdx = sched.filter((p) => e >= p.time).length;
+  const current = sched[currentIdx - 1];
+  const next = sched[currentIdx];
+  const nextEventTime = next ? next.time : fin;
+  const countdown = Math.max(0, nextEventTime - e);
+
+  $("timeBig").textContent = fmt(Math.min(e, fin));
+
+  if (state.phase === "brew" && current) {
+    $("pourStep").textContent = `${current.idx}投目 ／ 全${sched.length}投`;
+    $("pourAmt").textContent = `${current.amount}g 注ぐ`;
+    $("pourCum").textContent = `スケールが ${current.cum}g になるまで`;
+    $("nextLabel").textContent = next ? `次（${next.amount}g）まで` : "ドリッパーを外すまで";
+    $("nextCount").textContent = `${Math.ceil(countdown)}s`;
+    $("nextCount").classList.toggle("soon", countdown < 6);
+  }
+
+  // ゲージ＆湯気（最大96%＝最上段ラベル分だけ余白を残す）
+  const targetCum = current ? current.cum : 0;
+  const pct = state.phase === "setup" ? 0 : Math.min(96, (targetCum / water) * 96);
+  $("gaugeFill").style.height = pct + "%";
+  const steaming = state.phase === "brew" && e >= 30;
+  $("gauge").classList.toggle("steaming", steaming);
+  ["st1", "st2", "st3", "st4"].forEach((id) => { $(id).style.bottom = pct + "%"; });
+
+  // ステップ一覧
+  $("stepsList").innerHTML = sched.map((p) => {
+    const done = e >= p.time + 45 || state.phase === "done";
+    const active = current && current.idx === p.idx && state.phase === "brew";
+    return `<div class="step-row${active ? " active" : ""}">
+      <span class="mono">${done ? "✓" : "·"} ${fmt(p.time)}</span>
+      <span>${p.amount}g</span>
+      <span class="mono">計${p.cum}g</span>
+    </div>`;
+  }).join("");
+}
+
+$("startBtn").addEventListener("click", startBrew);
+
+$("pauseBtn").addEventListener("click", () => {
+  if (state.phase !== "brew") return;
+  if (state.running) {
+    state.base = state.elapsed;
+    state.running = false;
+    releaseWakeLock();
+    $("pauseBtn").textContent = "再開";
+  } else {
+    state.startAt = Date.now();
+    state.running = true;
+    acquireWakeLock();
+    $("pauseBtn").textContent = "一時停止";
+  }
+});
+
+$("resetBtn").addEventListener("click", () => {
+  clearInterval(intervalId);
+  state.running = false;
+  state.elapsed = 0;
+  state.phase = "setup";
+  releaseWakeLock();
+  $("brew").classList.add("hidden");
+  $("setup").classList.remove("hidden");
+  renderSetup();
+});
+
+$("muteBtn").addEventListener("click", () => {
+  state.muted = !state.muted;
+  $("beanSteam").style.display = state.muted ? "none" : "";
+  $("beanBody").setAttribute("opacity", state.muted ? "0.35" : "1");
+  $("beanSlash").style.display = state.muted ? "" : "none";
+  $("muteBtn").setAttribute("aria-label", state.muted ? "音をオンにする" : "音をオフにする");
+});
+
+renderSetup();
+</script>
+</body>
+</html>
