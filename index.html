@@ -156,7 +156,7 @@
     border: 1px solid var(--line); background: var(--surface);
     color: var(--cream); font-size: 15px;
   }
-  .btn-bean { flex: 0; padding: 10px 14px; display: flex; align-items: center; justify-content: center; }
+  .btn-icon { flex: 0; padding: 10px 14px; display: flex; align-items: center; justify-content: center; }
 
   .steps { margin-top: 20px; }
   .step-row {
@@ -236,8 +236,8 @@
       <div class="label">濃度 — 後半60%の回数</div>
       <div class="seg" id="strengthSeg">
         <button data-v="light">薄め</button>
-        <button data-v="std">標準</button>
-        <button data-v="strong" class="on">濃いめ</button>
+        <button data-v="std" class="on">標準</button>
+        <button data-v="strong">濃いめ</button>
       </div>
     </div>
 
@@ -288,18 +288,14 @@
         <div class="controls">
           <button class="btn-sub" id="pauseBtn">一時停止</button>
           <button class="btn-sub" id="resetBtn">リセット</button>
-          <button class="btn-sub btn-bean" id="muteBtn" aria-label="音をオフにする">
+          <button class="btn-sub btn-icon" id="muteBtn" aria-label="音をオフにする">
             <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
-              <g id="beanSteam" stroke="#C97E40" stroke-width="1.6" stroke-linecap="round" opacity="0.9">
-                <path d="M8.5 6 C 9.5 4.5, 7.5 3.5, 8.5 2"/>
-                <path d="M13 5.5 C 14 4, 12 3, 13 1.5"/>
-                <path d="M17.5 6 C 18.5 4.5, 16.5 3.5, 17.5 2"/>
+              <path d="M4 10 L8 10 L13 5.5 L13 20.5 L8 16 L4 16 Z" fill="#E8A85A"/>
+              <g id="spkWave" stroke="#C97E40" stroke-width="1.7" stroke-linecap="round" fill="none">
+                <path d="M16 9.5 C 18 11.5, 18 14.5, 16 16.5"/>
+                <path d="M18.5 7 C 22 10, 22 16, 18.5 19"/>
               </g>
-              <g id="beanBody" opacity="1">
-                <ellipse cx="13" cy="16" rx="6.2" ry="8" transform="rotate(-28 13 16)" fill="#E8A85A"/>
-                <path d="M9.4 21.5 C 11 18.5, 11.5 14.5, 16.6 10.5" stroke="#15100C" stroke-width="1.7" stroke-linecap="round" fill="none"/>
-              </g>
-              <line id="beanSlash" x1="4" y1="23" x2="22" y2="4" stroke="#E8A85A" stroke-width="2.2" stroke-linecap="round" style="display:none;"/>
+              <path id="spkCross" d="M16 10 L22 16 M22 10 L16 16" stroke="#E8A85A" stroke-width="2" stroke-linecap="round" style="display:none;"/>
             </svg>
           </button>
         </div>
@@ -319,7 +315,7 @@ const state = {
   coffee: 20,
   roast: "dark",
   taste: "sweet",
-  strength: "strong",
+  strength: "std",
   muted: false,
   running: false,
   elapsed: 0,
@@ -360,7 +356,7 @@ function chime(kind) {
       o.type = "sine"; o.frequency.value = f;
       const t = audioCtx.currentTime + i * 0.18;
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.5, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.9, t + 0.02);
       g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
       o.connect(g).connect(audioCtx.destination);
       o.start(t); o.stop(t + 0.55);
@@ -555,9 +551,8 @@ $("resetBtn").addEventListener("click", () => {
 
 $("muteBtn").addEventListener("click", () => {
   state.muted = !state.muted;
-  $("beanSteam").style.display = state.muted ? "none" : "";
-  $("beanBody").setAttribute("opacity", state.muted ? "0.35" : "1");
-  $("beanSlash").style.display = state.muted ? "" : "none";
+  $("spkWave").style.display = state.muted ? "none" : "";
+  $("spkCross").style.display = state.muted ? "" : "none";
   $("muteBtn").setAttribute("aria-label", state.muted ? "音をオンにする" : "音をオフにする");
 });
 
