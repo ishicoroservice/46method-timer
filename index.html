@@ -295,7 +295,10 @@
                 <path d="M16 9.5 C 18 11.5, 18 14.5, 16 16.5"/>
                 <path d="M18.5 7 C 22 10, 22 16, 18.5 19"/>
               </g>
-              <path id="spkCross" d="M16 10 L22 16 M22 10 L16 16" stroke="#E8A85A" stroke-width="2" stroke-linecap="round" style="display:none;"/>
+              <g id="spkSlash" style="display:none;">
+                <line x1="3.5" y1="22.5" x2="22.5" y2="3.5" stroke="#221813" stroke-width="4.5" stroke-linecap="round"/>
+                <line x1="3.5" y1="22.5" x2="22.5" y2="3.5" stroke="#E8A85A" stroke-width="2.2" stroke-linecap="round"/>
+              </g>
             </svg>
           </button>
         </div>
@@ -356,7 +359,7 @@ function chime(kind) {
       o.type = "sine"; o.frequency.value = f;
       const t = audioCtx.currentTime + i * 0.18;
       g.gain.setValueAtTime(0.0001, t);
-      g.gain.exponentialRampToValueAtTime(0.9, t + 0.02);
+      g.gain.exponentialRampToValueAtTime(1.0, t + 0.02);
       g.gain.exponentialRampToValueAtTime(0.0001, t + 0.5);
       o.connect(g).connect(audioCtx.destination);
       o.start(t); o.stop(t + 0.55);
@@ -551,8 +554,7 @@ $("resetBtn").addEventListener("click", () => {
 
 $("muteBtn").addEventListener("click", () => {
   state.muted = !state.muted;
-  $("spkWave").style.display = state.muted ? "none" : "";
-  $("spkCross").style.display = state.muted ? "" : "none";
+  $("spkSlash").style.display = state.muted ? "" : "none";
   $("muteBtn").setAttribute("aria-label", state.muted ? "音をオンにする" : "音をオフにする");
 });
 
